@@ -1,0 +1,152 @@
+/* Query 1 */What is the Most popular genre for each country?*/
+
+SELECT t3.Country,
+       genre,
+       MAX(t3.Purchases)
+FROM
+  (SELECT country,
+          MAX(Purchases) Purchases
+   FROM
+     (SELECT c.Country,
+             g.GenreId,
+             g.name genre,
+             COUNT(*) Purchases
+      FROM Customer c
+      JOIN Invoice i ON c.CustomerId = i.CustomerId
+      JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId
+      JOIN Track t ON t.TrackId = il.TrackId
+      JOIN Genre g ON g.GenreId = t.GenreId
+      GROUP BY 1,
+               2,
+               3) t1
+   GROUP BY 1) t2
+JOIN
+  (SELECT c.Country,
+          g.GenreId,
+          g.name genre,
+          COUNT(*) Purchases
+   FROM Customer c
+   JOIN Invoice i ON c.CustomerId = i.CustomerId
+   JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId
+   JOIN Track t ON t.TrackId = il.TrackId
+   JOIN Genre g ON g.GenreId = t.GenreId
+   GROUP BY 1,
+            2,
+            3) t3 ON t3.Country = t2.Country
+AND t3.Purchases = T2.Purchases
+GROUP BY 1,
+         2
+
+
+/* Query 2 */What is the top 5 customers spent the most on music for each country?*/
+
+SELECT t3.CustomerId,
+       t3.FirstName,
+       t3.LastName,
+       t3.Country,
+       MAX(t3.Total) total
+FROM
+  (SELECT Country,
+          MAX(Total) total
+   FROM
+     (SELECT c.CustomerId,
+             c.FirstName,
+             c.LastName,
+             c.Country,
+             SUM(i.total) AS Total
+      FROM Customer c
+      JOIN Invoice i ON c.CustomerId = i.CustomerId
+      GROUP BY 1,
+               2,
+               3,
+               4) t1
+   GROUP BY 1) t2
+JOIN
+  (SELECT c.CustomerId,
+          c.FirstName,
+          c.LastName,
+          c.Country,
+          SUM(i.total) AS Total
+   FROM Customer c
+   JOIN Invoice i ON c.CustomerId = i.CustomerId
+   GROUP BY 1,
+            2,
+            3,
+            4) t3 ON t3.Country = t2.Country
+AND t3.total = t2.total
+GROUP BY 1,
+         2,
+         3,
+         4
+ORDER BY 5 DESC
+LIMIT 5
+
+
+/* Query 3 */What is the top 5 customers spent the most on artist earned the most?*/
+
+SELECT a.name,
+       c.CustomerId,
+       c.FirstName,
+       c.LastName,
+       SUM(il.UnitPrice * il.Quantity) amount_spent
+FROM Customer c
+JOIN Invoice i ON c.CustomerId = i.CustomerId
+JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId
+JOIN Track t ON t.TrackId = il.TrackId
+JOIN Album al ON al.AlbumId = t.AlbumId
+JOIN Artist a ON a.ArtistId = al.ArtistId
+GROUP BY 1,
+         2,
+         3,
+         4
+HAVING a.name =
+  (SELECT name
+   FROM
+     (SELECT a.name,
+             SUM(il.UnitPrice * il.Quantity) amount_spent
+      FROM Artist a
+      JOIN Album al ON a.ArtistId = al.ArtistId
+      JOIN Track t ON al.AlbumId = t.AlbumId
+      JOIN InvoiceLine il ON t.TrackId = il.TrackId
+      GROUP BY 1
+      ORDER BY 2 DESC
+      LIMIT 1))
+ORDER BY 5 DESC
+
+/* Query 4 */Top 10 HighestEarnings Albums By Genre*/
+
+SELECT t3.artist,
+       t3.Album,
+       t3.genre,
+       MAX(t3.Earnings) Earnings
+FROM
+  (SELECT genre,
+          MAX(Earnings) Earnings
+   FROM
+     (SELECT a.name artist,
+             al.Title Album,
+             g.name genre,
+             SUM(i.total) Earnings
+      FROM Artist a
+      JOIN Album al ON a.ArtistId = al.ArtistId
+      JOIN Track t ON al.AlbumId = t.AlbumId
+      JOIN Genre g ON g.GenreId = t.GenreId
+      JOIN InvoiceLine il ON t.TrackId = il.TrackId
+      JOIN Invoice i ON i.InvoiceId = il.InvoiceId
+      GROUP BY 1,
+               2,
+               3) t1
+   GROUP BY 1) t2 JOIN
+  (SELECT a.name artist, al.Title Album, g.name genre, SUM(i.total * il.Quantity) Earnings
+   FROM Artist a
+   JOIN Album al ON a.ArtistId = al.ArtistId
+   JOIN Track t ON al.AlbumId = t.AlbumId
+   JOIN Genre g ON g.GenreId = t.GenreId
+   JOIN InvoiceLine il ON t.TrackId = il.TrackId
+   JOIN Invoice i ON i.InvoiceId = il.InvoiceId
+   GROUP BY 1, 2, 3) t3 ON t3.genre = t2.genre
+AND t3.Earnings = t2.Earnings
+GROUP BY 1,
+         2,
+         3
+ORDER BY 4 DESC
