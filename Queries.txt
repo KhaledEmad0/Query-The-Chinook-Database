@@ -41,47 +41,35 @@ ORDER BY 3 DESC;
 
 /* Query 2 */What is the top 5 customers spent the most on music for each country?*/
 
-SELECT t3.CustomerId,
-       t3.FirstName,
-       t3.LastName,
-       t3.Country,
-       MAX(t3.Total) total
-FROM
-  (SELECT Country,
-          MAX(Total) total
-   FROM
-     (SELECT c.CustomerId,
-             c.FirstName,
-             c.LastName,
-             c.Country,
-             SUM(i.total) AS Total
-      FROM Customer c
-      JOIN Invoice i ON c.CustomerId = i.CustomerId
-      GROUP BY 1,
-               2,
-               3,
-               4) t1
-   GROUP BY 1) t2
-JOIN
-  (SELECT c.CustomerId,
-          c.FirstName,
-          c.LastName,
-          c.Country,
-          SUM(i.total) AS Total
-   FROM Customer c
-   JOIN Invoice i ON c.CustomerId = i.CustomerId
-   GROUP BY 1,
-            2,
-            3,
-            4) t3 ON t3.Country = t2.Country
-AND t3.total = t2.total
-GROUP BY 1,
-         2,
-         3,
-         4
-ORDER BY 5 DESC
+WITH CustomerTotals AS (
+    SELECT 
+        c.CustomerId,
+        c.FirstName,
+        c.LastName,
+        c.Country,
+        SUM(i.Total) AS Total
+    FROM Customer c
+    JOIN Invoice i ON c.CustomerId = i.CustomerId
+    GROUP BY c.CustomerId
+),
+MaxCountryTotals AS (
+    SELECT 
+        Country,
+        MAX(Total) AS MaxTotal
+    FROM CustomerTotals
+    GROUP BY Country
+)
+SELECT 
+    ct.CustomerId,
+    ct.FirstName,
+    ct.LastName,
+    ct.Country,
+    ct.Total
+FROM CustomerTotals ct
+JOIN MaxCountryTotals mct
+    ON ct.Country = mct.Country AND ct.Total = mct.MaxTotal
+ORDER BY ct.Total DESC
 LIMIT 5;
-
 
 /* Query 3 */What is the top 5 customers spent the most on artist earned the most?*/
 
