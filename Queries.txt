@@ -73,35 +73,51 @@ LIMIT 5;
 
 /* Query 3 */What is the top 5 customers spent the most on artist earned the most?*/
 
-SELECT a.name,
-       c.CustomerId,
-       c.FirstName,
-       c.LastName,
-       SUM(il.UnitPrice * il.Quantity) amount_spent
-FROM Customer c
-JOIN Invoice i ON c.CustomerId = i.CustomerId
-JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId
-JOIN Track t ON t.TrackId = il.TrackId
-JOIN Album al ON al.AlbumId = t.AlbumId
-JOIN Artist a ON a.ArtistId = al.ArtistId
-GROUP BY 1,
-         2,
-         3,
-         4
-HAVING a.name =
-  (SELECT name
-   FROM
-     (SELECT a.name,
-             SUM(il.UnitPrice * il.Quantity) amount_spent
-      FROM Artist a
-      JOIN Album al ON a.ArtistId = al.ArtistId
-      JOIN Track t ON al.AlbumId = t.AlbumId
-      JOIN InvoiceLine il ON t.TrackId = il.TrackId
-      GROUP BY 1
-      ORDER BY 2 DESC
-      LIMIT 1))
-ORDER BY 5 DESC
+WITH ArtistEarnings AS (
+    SELECT 
+        a.ArtistId,
+        a.Name,
+        SUM(il.UnitPrice * il.Quantity) AS TotalEarnings
+    FROM Artist a
+    JOIN Album al ON a.ArtistId = al.ArtistId
+    JOIN Track t ON al.AlbumId = t.AlbumId
+    JOIN InvoiceLine il ON t.TrackId = il.TrackId
+    GROUP BY a.ArtistId
+),
+TopArtist AS (
+    SELECT 
+        ArtistId,
+        Name
+    FROM ArtistEarnings
+    ORDER BY TotalEarnings DESC
+    LIMIT 1
+),
+CustomerSpendingOnTopArtist AS (
+    SELECT 
+        c.CustomerId,
+        c.FirstName,
+        c.LastName,
+        a.Name AS ArtistName,
+        SUM(il.UnitPrice * il.Quantity) AS AmountSpent
+    FROM Customer c
+    JOIN Invoice i ON c.CustomerId = i.CustomerId
+    JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId
+    JOIN Track t ON il.TrackId = t.TrackId
+    JOIN Album al ON t.AlbumId = al.AlbumId
+    JOIN Artist a ON al.ArtistId = a.ArtistId
+    WHERE a.ArtistId = (SELECT ArtistId FROM TopArtist)
+    GROUP BY c.CustomerId
+)
+SELECT 
+    ArtistName,
+    CustomerId,
+    FirstName,
+    LastName,
+    AmountSpent
+FROM CustomerSpendingOnTopArtist
+ORDER BY AmountSpent DESC
 LIMIT 5;
+
 
 /* Query 4 */Top 10 HighestEarnings Albums By Genre*/
 
